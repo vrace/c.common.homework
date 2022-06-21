@@ -1,7 +1,5 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-
+#include <random>
+#include <algorithm>
 #include <iostream>
 #include <vector>
 #include <string>
@@ -22,24 +20,17 @@ std::vector<std::string> init_deck()
     deck.push_back("JOKER");
     deck.push_back("Joker");
 
-    for (int i = 0; i < 54; i++) {
-        int k = rand() % 54;
-        if (i != k) {
-            std::string tmp = deck[i];
-            deck[i] = deck[k];
-            deck[k] = tmp;
-        }
-    }
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(deck.begin(), deck.end(), g);
     
     return deck;
 }
 
 int main(void)
 {
-    srand((unsigned int)time(NULL));
-
-    std::vector<std::string> deck = init_deck();
-    std::vector<std::string>::iterator it = deck.begin();
+    auto deck = init_deck();
+    auto it = deck.begin();
 
     for (int i = 0; i < 3; i++) {
         std::cout << "Player " << i + 1 << "\n";
