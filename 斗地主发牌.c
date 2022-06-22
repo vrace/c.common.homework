@@ -15,7 +15,7 @@ typedef enum card_type
 typedef struct card
 {
     CARD_TYPE type;
-    int index;
+    int rank;
 } CARD;
 
 typedef struct deck
@@ -32,15 +32,15 @@ void init_deck(DECK *deck)
     for (i = 0; i < sizeof(types) / sizeof(types[0]); i++) {
         for (k = 0; k < 13; k++) {
             card->type = types[i];
-            card->index = k;
+            card->rank = k;
             card++;
         }
     }
     card->type = CARD_TYPE_JOKER;
-    card->index = 0;
+    card->rank = 0;
     card++;
     card->type = CARD_TYPE_JOKER;
-    card->index = 1;
+    card->rank = 1;
 }
 
 void shuffle_deck(DECK *deck)
@@ -61,7 +61,7 @@ void shuffle_deck(DECK *deck)
 void draw_card(CARD *card)
 {
     static const char *types[] = {"HEART", "SPADE", "DIAMOND", "CLUB"};
-    static const char *indices[] = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"};
+    static const char *ranks[] = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"};
     static const char *jokers[] = {"RED JOKER", "BLACK JOKER"};
     char buf[13];
 
@@ -70,33 +70,80 @@ void draw_card(CARD *card)
         case CARD_TYPE_SPADE:
         case CARD_TYPE_DIAMOND:
         case CARD_TYPE_CLUB:
-            sprintf(buf, "%s %s", types[card->type], indices[card->index]);
+            sprintf(buf, "%s %s", types[card->type], ranks[card->rank]);
             printf("%13s", buf);
             break;
         case CARD_TYPE_JOKER:
-            printf("%13s", jokers[card->index]);
+            printf("%13s", jokers[card->rank]);
             break;
         default:
             break;
     }
 }
 
-int main(void)
+typedef struct hands
+{
+    CARD *players[3][17];
+    CARD *remains[3];
+} HANDS;
+
+void init_hands(HANDS *hands, DECK *deck)
 {
     int i, k;
-    DECK deck;
-    CARD *card = &deck.cards[0];
+    CARD *card = &deck->cards[0];
 
-    srand((unsigned int)time(NULL));
-    
-    init_deck(&deck);
-    shuffle_deck(&deck);
+    for (i = 0; i < 3; i++) {
+        for (k = 0; k < 17; k++) {
+            hands->players[i][k] = card++;
+        }
+    }
+    for (i = 0; i < 3; i++) {
+        hands->remains[i] = card++;
+    }
+}
+
+int sort_hands_ranking(const CARD *card)
+{
+    switch (card->type)
+    {
+        case CARD_TYPE_HEART:
+        case CARD_TYPE_SPADE:
+        case CARD_TYPE_DIAMOND:
+        case CARD_TYPE_CLUB:
+            return card->rank * 10 + card->type;
+        case CARD_TYPE_JOKER:
+            return 500 + card->rank;
+        default:
+            break;
+    }
+    return 0;
+}
+
+int sort_hands_fn(const void *left, const void *right)
+{
+    const CARD *lhs = *(const CARD**)left;
+    const CARD *rhs = *(const CARD**)right;
+    return sort_hands_ranking(lhs) - sort_hands_ranking(rhs);
+}
+
+void sort_hands(HANDS *hands)
+{
+    int i;
+    for (i = 0; i < 3; i++) {
+        qsort(hands->players[i], 17, sizeof(CARD*), sort_hands_fn);
+    }
+    qsort(hands->remains, 3, sizeof(CARD*), sort_hands_fn);
+}
+
+void draw_hands(HANDS *hands)
+{
+    int i, k;
 
     for (i = 0; i < 3; i++) {
         printf("Player %d\n", i + 1);
         for (k = 0; k < 17; k++) {
-            draw_card(card++);
-            if (k && (k + 1) % 6 == 0) {
+            draw_card(hands->players[i][k]);
+            if ((k + 1) % 6 == 0) {
                 printf("\n");
             }
         }
@@ -104,10 +151,25 @@ int main(void)
     }
 
     printf("Remains\n");
-    for (; card != &deck.cards[sizeof(deck.cards) / sizeof(deck.cards[0])]; card++) {
-        draw_card(card);
+    for (i = 0; i < 3; i++) {
+        draw_card(hands->remains[i]);
     }
     printf("\n");
+}
+
+int main(void)
+{
+    DECK deck;
+    HANDS hands;
+
+    srand((unsigned int)time(NULL));
+    
+    init_deck(&deck);
+    shuffle_deck(&deck);
+
+    init_hands(&hands, &deck);
+    sort_hands(&hands);
+    draw_hands(&hands);
 
     return 0;
 }
